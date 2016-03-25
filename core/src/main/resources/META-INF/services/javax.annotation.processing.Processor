@@ -1,0 +1,2 @@
+io.nti.jaxrs.processors.ResourceProcessor
+io.nti.jaxrs.processors.ServletProcessor
