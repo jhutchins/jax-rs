@@ -31,10 +31,12 @@ public class TheTest {
         server.stop();
     }
 
+    // TEST ALL THE METHODS ANNOTATIONS
+
     @Test
-    public void testGet() throws Exception {
+    public void testMethodGet() throws Exception {
         Request request = new Request.Builder()
-                .url("http://localhost:8080/testing")
+                .url("http://localhost:8080/methods")
                 .build();
 
         Response response = client.newCall(request).execute();
@@ -43,9 +45,9 @@ public class TheTest {
     }
 
     @Test
-    public void testPost() throws Exception {
+    public void testMethodPost() throws Exception {
         Request request = new Request.Builder()
-                .url("http://localhost:8080/testing")
+                .url("http://localhost:8080/methods")
                 .post(RequestBody.create(MediaType.parse("text/plain"), "data"))
                 .build();
 
@@ -55,9 +57,9 @@ public class TheTest {
     }
 
     @Test
-    public void testPut() throws Exception {
+    public void testMethodPut() throws Exception {
         Request request = new Request.Builder()
-                .url("http://localhost:8080/testing")
+                .url("http://localhost:8080/methods")
                 .put(RequestBody.create(MediaType.parse("text/plain"), "data"))
                 .build();
 
@@ -67,9 +69,9 @@ public class TheTest {
     }
 
     @Test
-    public void testHead() throws Exception {
+    public void testMethodHead() throws Exception {
         Request request = new Request.Builder()
-                .url("http://localhost:8080/testing")
+                .url("http://localhost:8080/methods")
                 .head()
                 .build();
 
@@ -79,10 +81,146 @@ public class TheTest {
     }
 
     @Test
-    public void testDelete() throws Exception {
+    public void testMethodDelete() throws Exception {
         Request request = new Request.Builder()
-                .url("http://localhost:8080/testing")
+                .url("http://localhost:8080/methods")
                 .delete()
+                .build();
+
+        Response response = client.newCall(request).execute();
+        assertThat(response.body().string()).contains("delete");
+        assertThat(response.code()).isEqualTo(200);
+    }
+
+    @Test
+    public void testMethodOptions() throws Exception {
+        Request request = new Request.Builder()
+                .url("http://localhost:8080/methods")
+                .method("OPTIONS", null)
+                .build();
+
+        Response response = client.newCall(request).execute();
+        assertThat(response.body().string()).contains("options");
+        assertThat(response.code()).isEqualTo(200);
+    }
+
+    // TEST CUSTOM ANNOTATIONS
+
+    @Test
+    public void testAnnotationNonStandard() throws Exception {
+        Request request = new Request.Builder()
+                .url("http://localhost:8080/annotations")
+                .method("OTHER", null)
+                .build();
+
+        Response response = client.newCall(request).execute();
+        assertThat(response.body().string()).contains("other");
+        assertThat(response.code()).isEqualTo(200);
+    }
+
+    @Test
+    public void testAnnotationsCustomStandard() throws Exception {
+        Request request = new Request.Builder()
+                .url("http://localhost:8080/annotations")
+                .get()
+                .build();
+
+        Response response = client.newCall(request).execute();
+        assertThat(response.body().string()).contains("get");
+        assertThat(response.code()).isEqualTo(200);
+    }
+
+    // TEST RESPONSE TYPES
+
+    @Test
+    public void testResponseString() throws Exception {
+        Request request = new Request.Builder()
+                .url("http://localhost:8080/response/string")
+                .get()
+                .build();
+
+        Response response = client.newCall(request).execute();
+        assertThat(response.body().string()).isEqualTo(ResponsesTestResource.RESPONSE);
+        assertThat(response.code()).isEqualTo(200);
+    }
+
+    @Test
+    public void testResponseStringNull() throws Exception {
+        Request request = new Request.Builder()
+                .url("http://localhost:8080/response/string/null")
+                .get()
+                .build();
+
+        Response response = client.newCall(request).execute();
+        assertThat(response.body().string()).isEmpty();
+        assertThat(response.code()).isEqualTo(204);
+    }
+
+    @Test
+    public void testResponseVoid() throws Exception {
+        Request request = new Request.Builder()
+                .url("http://localhost:8080/response/void")
+                .get()
+                .build();
+
+        Response response = client.newCall(request).execute();
+        assertThat(response.body().string()).isEmpty();
+        assertThat(response.code()).isEqualTo(204);
+    }
+
+    @Test
+    public void testResponseResponse() throws Exception {
+        Request request = new Request.Builder()
+                .url("http://localhost:8080/response/response")
+                .get()
+                .build();
+
+        Response response = client.newCall(request).execute();
+        assertThat(response.body().string()).isEqualTo(ResponsesTestResource.RESPONSE);
+        assertThat(response.code()).isEqualTo(200);
+    }
+
+    @Test
+    public void testResponseResponseNull() throws Exception {
+        Request request = new Request.Builder()
+                .url("http://localhost:8080/response/response/null")
+                .get()
+                .build();
+
+        Response response = client.newCall(request).execute();
+        assertThat(response.body().string()).isEmpty();
+        assertThat(response.code()).isEqualTo(204);
+    }
+
+    @Test
+    public void testResponseResponseNone() throws Exception {
+        Request request = new Request.Builder()
+                .url("http://localhost:8080/response/response/none")
+                .get()
+                .build();
+
+        Response response = client.newCall(request).execute();
+        assertThat(response.body().string()).isEmpty();
+        assertThat(response.code()).isEqualTo(200);
+    }
+
+    @Test
+    public void testResponseGeneric() throws Exception {
+        Request request = new Request.Builder()
+                .url("http://localhost:8080/response/generic")
+                .get()
+                .build();
+
+        Response response = client.newCall(request).execute();
+        assertThat(response.body().string()).isEqualTo(ResponsesTestResource.RESPONSE);
+        assertThat(response.code()).isEqualTo(200);
+    }
+
+    @Test
+    public void testResponseGenericNull() throws Exception {
+        Request request = new Request.Builder()
+                .url("http://localhost:8080/response/generic/null")
+                .get()
                 .build();
 
         Response response = client.newCall(request).execute();

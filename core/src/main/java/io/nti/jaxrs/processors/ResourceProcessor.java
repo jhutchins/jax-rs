@@ -1,13 +1,7 @@
 package io.nti.jaxrs.processors;
 
 import java.io.Writer;
-import java.util.HashMap;
-import java.util.LinkedList;
-import java.util.List;
-import java.util.Map;
 import java.util.Set;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
 
 import javax.annotation.processing.AbstractProcessor;
 import javax.annotation.processing.Messager;
@@ -21,13 +15,11 @@ import javax.lang.model.element.Element;
 import javax.lang.model.element.ElementKind;
 import javax.lang.model.element.ExecutableElement;
 import javax.lang.model.element.TypeElement;
-import javax.lang.model.element.VariableElement;
 import javax.tools.Diagnostic;
 import javax.tools.JavaFileObject;
 import javax.ws.rs.HttpMethod;
 import javax.ws.rs.Path;
 
-import com.google.common.collect.Maps;
 import com.mitchellbosecke.pebble.PebbleEngine;
 import com.mitchellbosecke.pebble.error.PebbleException;
 import com.mitchellbosecke.pebble.template.PebbleTemplate;
@@ -39,7 +31,6 @@ import com.mitchellbosecke.pebble.template.PebbleTemplate;
 @SupportedSourceVersion(SourceVersion.RELEASE_7)
 public class ResourceProcessor extends AbstractProcessor {
 
-    private final Pattern pathParams = Pattern.compile("(\\{.+?})");
     private final PebbleTemplate resource;
     private Messager messager;
 
@@ -54,7 +45,6 @@ public class ResourceProcessor extends AbstractProcessor {
         super.init(processingEnv);
         messager = processingEnv.getMessager();
     }
-
 
 
     public boolean process(Set<? extends TypeElement> annotations, RoundEnvironment roundEnv) {
@@ -72,28 +62,20 @@ public class ResourceProcessor extends AbstractProcessor {
     }
 
     private void createClass(TypeElement element) throws Exception {
-        final Map<String, Object> data = Maps.newHashMap();
-        final List<String> regexs = new LinkedList<>();
-        final List<Method> methods = new LinkedList<>();
-
-        final String path = element.getAnnotation(Path.class).value();
-
-        data.put("name", element.getQualifiedName());
-        data.put("proxyName", element.getSimpleName().toString() + "Proxy");
+        final Path path = element.getAnnotation(Path.class);
+        final ResourceDefinition.Builder resourceBuilder = ResourceDefinition.builder()
+                .delegate(element.getQualifiedName())
+                .generator(getClass().getCanonicalName())
+                .path(path);
 
         for (Element e : element.getEnclosedElements()) {
             final ElementKind kind = e.getKind();
             messager.printMessage(Diagnostic.Kind.NOTE, "Got a " + kind);
-            if (kind.equals(ElementKind.CONSTRUCTOR)) {
-                ExecutableElement constructor = (ExecutableElement) e;
-                Map<String, Object> parameters = new HashMap<>();
-                for (VariableElement var : constructor.getParameters()) {
-                    // TODO: constructor stuff
-                }
-                data.put("constructor", parameters);
-            }
-            else {
-                if (kind.equals(ElementKind.METHOD)) {
+            switch (e.getKind()) {
+                case CONSTRUCTOR:
+                    resourceBuilder.constructor((ExecutableElement) e);
+                    break;
+                case METHOD:
                     ExecutableElement method = (ExecutableElement) e;
                     Path methodPath = method.getAnnotation(Path.class);
                     HttpMethod httpMethod = null;
@@ -101,60 +83,25 @@ public class ResourceProcessor extends AbstractProcessor {
                         final Element annotationElement = annotation.getAnnotationType().asElement();
                         final HttpMethod httpAnnotation = annotationElement.getAnnotation(HttpMethod.class);
                         if (httpAnnotation != null) {
-                            if (httpMethod == null) {
-                                httpMethod = httpAnnotation;
-                            } else {
-                                messager.printMessage(Diagnostic.Kind.ERROR, "Duplicate HTTP verb annotations");
-                            }
+                            httpMethod = httpAnnotation;
+                            break;
                         }
                     }
+                    // If not annotated with path or an http method than we need not be concerned.
                     if (methodPath == null && httpMethod == null) {
                         continue;
                     }
-                    regexs.add(new StringBuilder("^")
-                            .append(regexify(path))
-                            .append(methodPath == null ? "" : regexify(methodPath.value()))
-                            .append("$")
-                            .toString());
-                    methods.add(Method.builder()
-                            .type(httpMethod)
-                            .name(method.getSimpleName())
-                            .returnType(method.getReturnType())
-                            .parameters(method.getParameters())
-                            .build());
-                }
+                    resourceBuilder.methodDefinition(MethodDefinition.build(method, httpMethod, path, methodPath));
+                    break;
+                default:
+                    break;
             }
         }
 
-        data.put("regexs", regexs);
-        data.put("methods", methods);
-        data.put("generator", getClass().getCanonicalName());
-        data.put("base", "^" + regexify(path));
-
-        final String location = "io.nti.jaxrs.impl.generated." + element.getSimpleName() + "Proxy";
-        final JavaFileObject out = processingEnv.getFiler().createSourceFile(location);
+        final ResourceDefinition resourceDefinition = resourceBuilder.build();
+        final JavaFileObject out = processingEnv.getFiler().createSourceFile(resourceDefinition.getLocation());
         try (final Writer writer = out.openWriter()) {
-            resource.evaluate(writer, data);
+            resource.evaluate(writer, resourceDefinition.getData());
         }
-    }
-
-    private String regexify(String value) {
-        Matcher matcher = pathParams.matcher(value);
-        while (matcher.find()) {
-            final String match = matcher.group(1);
-            StringBuilder rule = new StringBuilder("(?<");
-            final int index = match.indexOf(":");
-            if (index > -1) {
-                rule.append(match.substring(1, index));
-                rule.append(">");
-                rule.append(match.substring(index + 1, match.length() - 1).replace("\\", "\\\\"));
-                rule.append(")");
-            } else {
-                rule.append(match.substring(1, match.length() - 1));
-                rule.append(">[^/]+)");
-            }
-            value = value.replace(match, rule.toString());
-        }
-        return value;
     }
 }

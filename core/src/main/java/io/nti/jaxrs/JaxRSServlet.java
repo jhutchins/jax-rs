@@ -9,6 +9,7 @@ import javax.servlet.ServletRequest;
 import javax.servlet.ServletResponse;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
+import javax.ws.rs.core.GenericEntity;
 import javax.ws.rs.core.Response;
 import java.io.IOException;
 import java.util.HashSet;
@@ -39,15 +40,22 @@ public abstract class JaxRSServlet extends GenericServlet {
         response.setStatus(404);
 
         for (Resource resource : resources) {
-            if (resource.getBaseMatch().matcher(context.getUri()).matches()) {
+            if (resource.getBaseMatch().matcher(context.getUri()).find()) {
                 try {
                     final Response result = resource.process(context);
                     response.setStatus(result.getStatus());
                     if (result.hasEntity()) {
                         final ServletOutputStream outputStream = response.getOutputStream();
                         try {
-                            final String s = result.getEntity().toString();
-                            outputStream.print(s);
+                            final Object entity = result.getEntity();
+                            final Object body;
+                            if (entity instanceof GenericEntity) {
+                                body = ((GenericEntity) entity).getEntity();
+                            } else {
+                                body = entity;
+                            }
+                            // TODO: Add serialization here somehow.
+                            outputStream.print(body.toString());
                         } finally {
                             outputStream.close();
                         }
